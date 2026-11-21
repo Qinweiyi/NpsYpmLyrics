@@ -2,9 +2,11 @@
 
 [![release](https://img.shields.io/github/v/release/Qinweiyi/NpsYpmLyrics)](https://github.com/Qinweiyi/NpsYpmLyrics/releases/latest)
 
-给 NotchPeninsula 补上 YesPlayMusic 的**播放时间轴**：插件不注册任何岛内组件，
-媒体条、进度、歌词全都还是宿主内置的那一套，它只负责把「唱到哪一秒」喂准。
-定位和 `mediacdp`（网易云/酷狗时间轴获取）完全一致。
+对齐 [YesPlayMusic](https://github.com/qier222/YesPlayMusic) 的歌词时间轴到
+[NotchPeninsula](https://github.com/GEORGEWWWU/NotchPeninsula) 媒体条；
+进度条、时间、歌词高亮全部复用宿主内置的媒体控制。
+
+插件不注册任何岛内组件，只负责把「唱到哪一秒」喂准，定位和 `mediacdp`（网易云/酷狗时间轴获取）完全一致。
 
 ## 下载安装（不用编译）
 
@@ -120,6 +122,14 @@ build.cmd
 | 日志里没有「宿主读取时间轴」 | 宿主没接管：确认播放器带调试端口、且在播放，`keywords` 能匹配上 SMTC 的 appId |
 | 进度跳一下又回原点 | 和别的工具抢调试端口，改用 9333（`start-with-cdp.cmd` 已默认） |
 | 岛内没有媒体条 | 设置 → 显示设置 → 显示内容，确认媒体项被勾选 |
+
+## 相关仓库
+
+| 项目 | 仓库 | 在这一环里的角色 |
+|---|---|---|
+| YesPlayMusic | https://github.com/qier222/YesPlayMusic | 播放器本体；插件通过它的 DevTools 端口读真实进度 |
+| NotchPeninsula | https://github.com/GEORGEWWWU/NotchPeninsula | 宿主（NPS）；提供 `IMediaSessionSource` 接口与内置媒体条 |
+| 本插件 | https://github.com/Qinweiyi/NpsYpmLyrics | 把上面两者的时间轴接起来 |
 
 ## 兼容性
 

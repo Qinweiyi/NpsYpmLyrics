@@ -1,8 +1,19 @@
 # NpsYpmLyrics · YesPlayMusic 时间轴
 
+[![release](https://img.shields.io/github/v/release/Qinweiyi/NpsYpmLyrics)](https://github.com/Qinweiyi/NpsYpmLyrics/releases/latest)
+
 给 NotchPeninsula 补上 YesPlayMusic 的**播放时间轴**：岛上不新增任何媒体窗口，
 媒体条、进度、歌词全都还是宿主内置的那一套，插件只负责把「唱到哪一秒」喂准。
 定位和 `mediacdp`（网易云/酷狗时间轴获取）完全一致。
+
+## 下载安装（不用编译）
+
+1. 到 [Releases](https://github.com/Qinweiyi/NpsYpmLyrics/releases/latest) 下载 `NpsYpmLyrics-vX.Y.Z.zip`
+2. 解压后把整个文件夹放到 `C:\Program Files\NotchPeninsula\plugins\NpsYpmLyrics\`
+3. 重启 NotchPeninsula
+4. **用包里的 `start-with-cdp.cmd` 启动 YesPlayMusic**（关键一步，见下一节）
+
+需要自己编译的见文末「构建」。
 
 ## 它解决什么问题
 

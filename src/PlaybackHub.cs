@@ -10,6 +10,7 @@ namespace NpsYpmLyrics;
 /// </summary>
 internal sealed class PlaybackHub : IDisposable
 {
+    private readonly IPluginHost _host;
     private readonly SmtcProbe _smtc;
     private readonly CdpProbe _cdp;
     private readonly IDisposable _ticker;
@@ -25,6 +26,7 @@ internal sealed class PlaybackHub : IDisposable
 
     public PlaybackHub(IPluginHost host, string[] keywords, int[] ports)
     {
+        _host = host;
         _smtc = new SmtcProbe(keywords);
         _cdp = new CdpProbe(ports);
 
@@ -81,6 +83,12 @@ internal sealed class PlaybackHub : IDisposable
     /// <summary>1 = 已喜欢，0 = 未喜欢，-1 = 读不到（没登录 / 播放条不在）。</summary>
     public int Liked => Snapshot.Liked;
 
+    /// <summary>播放器自己的空心爱心 path（30×30 坐标系）。</summary>
+    public string HollowHeartPath => _cdp.HollowHeartPath;
+
+    /// <summary>播放器自己的实心爱心 path（30×30 坐标系）。</summary>
+    public string SolidHeartPath => _cdp.SolidHeartPath;
+
     /// <summary>把当前歌曲加入或移出「我喜欢的音乐」。只有 CDP 能点，SMTC 没有这个能力。</summary>
     public void ToggleLike()
     {
@@ -102,8 +110,14 @@ internal sealed class PlaybackHub : IDisposable
 
         bool stateChanged = songChanged || playing != _lastPlaying || hasSession != _lastHasSession;
 
+        bool sessionToggled = hasSession != _lastHasSession;
+
         _lastPlaying = playing;
         _lastHasSession = hasSession;
+
+        // 组件显隐取决于「有没有会话」：会话刚出现 / 刚消失时必须让宿主重新量一次宽度，
+        // 否则启动那一刻还没连上播放器，组件会被量成 0 宽并一直隐藏。
+        if (sessionToggled) _host.InvalidateWidgetLayout();
 
         // 喜欢状态变了记一笔：爱心颜色切换没有别的痕迹，排障时全靠这行
         int liked = snap.Liked;

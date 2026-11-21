@@ -13,36 +13,17 @@ internal sealed record PlaybackSnapshot(
     string AppId,
     string Title,
     string Artist,
-    string Album,
     TimeSpan Position,
     TimeSpan Duration,
     bool IsPlaying,
     DateTime CapturedUtc,
     string? CoverUrl = null,
-    long SongId = 0,
     int Liked = -1)
 {
     public static readonly PlaybackSnapshot None =
-        new("", "", "", "", TimeSpan.Zero, TimeSpan.Zero, false, DateTime.MinValue);
+        new("", "", "", TimeSpan.Zero, TimeSpan.Zero, false, DateTime.MinValue);
 
     public bool HasSession => CapturedUtc != DateTime.MinValue;
-
-    /// <summary>按墙钟推算的当前位置（宿主与歌词都按这个对齐）。</summary>
-    public TimeSpan PositionNow()
-    {
-        if (!HasSession) return TimeSpan.Zero;
-
-        TimeSpan p = Position;
-        if (IsPlaying)
-        {
-            TimeSpan drift = DateTime.UtcNow - CapturedUtc;
-            if (drift > TimeSpan.Zero && drift < TimeSpan.FromSeconds(20)) p += drift;
-        }
-
-        if (p < TimeSpan.Zero) p = TimeSpan.Zero;
-        if (Duration > TimeSpan.Zero && p > Duration) p = Duration;
-        return p;
-    }
 
     public string Key => HasSession ? Artist + "\u0001" + Title : "";
 }
@@ -148,13 +129,11 @@ internal sealed class SmtcProbe : IDisposable
         string appId = "";
         string title = "";
         string artist = "";
-        string album = "";
         try { appId = session.SourceAppUserModelId ?? ""; } catch { }
         if (props is not null)
         {
             title = props.Title ?? "";
             artist = props.Artist ?? "";
-            album = props.AlbumTitle ?? "";
         }
 
         TimeSpan pos = TimeSpan.Zero, dur = TimeSpan.Zero;
@@ -190,7 +169,7 @@ internal sealed class SmtcProbe : IDisposable
         }
         catch { }
 
-        return new PlaybackSnapshot(appId, title.Trim(), artist.Trim(), album.Trim(),
+        return new PlaybackSnapshot(appId, title.Trim(), artist.Trim(),
             pos < TimeSpan.Zero ? TimeSpan.Zero : pos, dur, playing, DateTime.UtcNow);
     }
 

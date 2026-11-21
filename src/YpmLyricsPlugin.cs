@@ -28,7 +28,7 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
 
     public string DisplayName => "YesPlayMusic 歌词时间轴";
 
-    public string Version => "1.3.0";
+    public string Version => "1.3.1";
 
     public string Author => "QwY";
 

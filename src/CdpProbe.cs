@@ -55,9 +55,7 @@ internal sealed class CdpProbe : IDisposable
               p: !a.paused && !a.ended,
               title: (m && m.title) || document.title || '',
               artist: (m && m.artist) || '',
-              album: (m && m.album) || '',
               cover: cover,
-              nid: 0,
               lk: lk
             });
           }
@@ -73,9 +71,7 @@ internal sealed class CdpProbe : IDisposable
               p: !!st._playing,
               title: tr.name || '',
               artist: (tr.ar || []).map(x => x.name).join('/'),
-              album: (tr.al && tr.al.name) || '',
               cover: (tr.al && tr.al.picUrl) || '',
-              nid: tr.id || 0,
               lk: lk
             });
           }
@@ -113,6 +109,61 @@ internal sealed class CdpProbe : IDisposable
     }
 
     public int[] Ports => _ports;
+
+    // ---- 播放器的两个爱心图标（原始 svg path，直接用，不自己画）----
+
+    private const string IconExpr = """
+        (() => {
+          const grab = id => {
+            const el = document.querySelector('[id="' + id + '"]');
+            const p = el && el.querySelector('path');
+            return p ? (p.getAttribute('d') || '') : '';
+          };
+          return JSON.stringify({ hollow: grab('icon-heart'), solid: grab('icon-heart-solid') });
+        })()
+        """;
+
+    private volatile string _hollowIcon = "";
+    private volatile string _solidIcon = "";
+
+    /// <summary>空心爱心（未喜欢）的原始 path，30×30 坐标系。</summary>
+    public string HollowHeartPath => _hollowIcon;
+
+    /// <summary>实心爱心（已喜欢）的原始 path，30×30 坐标系。</summary>
+    public string SolidHeartPath => _solidIcon;
+
+    private async Task FetchIconsAsync(CancellationToken ct)
+    {
+        if (_hollowIcon.Length > 0 && _solidIcon.Length > 0) return;
+
+        try
+        {
+            string resp = await SendAsync("Runtime.evaluate",
+                new { expression = IconExpr, returnByValue = true }, ct);
+            if (resp.Length == 0) return;
+
+            using var doc = JsonDocument.Parse(resp);
+            if (!doc.RootElement.TryGetProperty("result", out var result)) return;
+            if (!result.TryGetProperty("result", out var inner)) return;
+            if (!inner.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.String) return;
+
+            string payload = value.GetString() ?? "";
+            if (payload.Length == 0) return;
+
+            using var data = JsonDocument.Parse(payload);
+            string hollow = data.RootElement.TryGetProperty("hollow", out var h) ? h.GetString() ?? "" : "";
+            string solid = data.RootElement.TryGetProperty("solid", out var s) ? s.GetString() ?? "" : "";
+
+            if (hollow.Length > 0) _hollowIcon = hollow;
+            if (solid.Length > 0) _solidIcon = solid;
+
+            Diag.Log($"已取到播放器爱心图标（空心 {_hollowIcon.Length} 字符 / 实心 {_solidIcon.Length} 字符）");
+        }
+        catch (Exception ex)
+        {
+            Diag.Log("取爱心图标失败: " + ex.Message);
+        }
+    }
 
     public PlaybackSnapshot Snapshot => Volatile.Read(ref _snapshot);
 
@@ -197,6 +248,9 @@ internal sealed class CdpProbe : IDisposable
         _activePort = port;
         _lastError = "";
         Diag.Log($"CDP 已连接（端口 {port}）: {wsUrl}");
+
+        // 顺手把播放器的爱心图标取下来（只在第一次成功时取，之后走缓存）
+        await FetchIconsAsync(ct);
         return true;
     }
 
@@ -253,9 +307,7 @@ internal sealed class CdpProbe : IDisposable
 
         string title = root.TryGetProperty("title", out var ti) ? ti.GetString() ?? "" : "";
         string artist = root.TryGetProperty("artist", out var ar) ? ar.GetString() ?? "" : "";
-        string album = root.TryGetProperty("album", out var al) ? al.GetString() ?? "" : "";
         string cover = root.TryGetProperty("cover", out var co) ? co.GetString() ?? "" : "";
-        long nid = root.TryGetProperty("nid", out var ni) && ni.ValueKind == JsonValueKind.Number ? ni.GetInt64() : 0;
         int liked = root.TryGetProperty("lk", out var lv) && lv.ValueKind == JsonValueKind.Number ? lv.GetInt32() : -1;
 
         if (title.Length == 0 && t <= 0) { Volatile.Write(ref _snapshot, PlaybackSnapshot.None); return; }
@@ -264,13 +316,11 @@ internal sealed class CdpProbe : IDisposable
             "YesPlayMusic.exe",
             title.Trim(),
             artist.Trim(),
-            album.Trim(),
             TimeSpan.FromSeconds(Math.Max(0, t)),
             TimeSpan.FromSeconds(Math.Max(0, d)),
             playing,
             DateTime.UtcNow,
             cover,
-            nid,
             liked));
         _lastDataUtc = DateTime.UtcNow;
     }

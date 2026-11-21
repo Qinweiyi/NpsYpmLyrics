@@ -24,11 +24,11 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
     private PlaybackHub? _hub;
     private IReadOnlyList<string> _keywords = new[] { "yesplay" };
 
-    public string Id => "workbuddy.nps.ypmlyrics";
+    public string Id => "qwy.nps.ypmlyrics";
 
-    public string DisplayName => "YesPlayMusic 时间轴";
+    public string DisplayName => "YesPlayMusic 歌词时间轴";
 
-    public string Version => "1.2.0";
+    public string Version => "1.2.1";
 
     public string Author => "QwY";
 
@@ -49,7 +49,7 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
                 host.SetSetting("welcomed", "1");
                 host.PostReminder(new ReminderData
                 {
-                    Source = "YesPlayMusic 时间轴",
+                    Source = "YesPlayMusic 歌词时间轴",
                     Title = "时间轴已接管",
                     Body = "媒体面板里的进度和歌词现在跟着 YesPlayMusic 走了。",
                     Duration = TimeSpan.FromSeconds(8),
@@ -94,7 +94,7 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
 
     public string SourceId => Id;
 
-    public string SourceName => "YesPlayMusic 时间轴";
+    public string SourceName => "YesPlayMusic 歌词时间轴";
 
     /// <summary>和别的源（如 mediacdp）撞车时谁大听谁的。</summary>
     public int Priority => 200;

@@ -1,7 +1,7 @@
 {
   "dll": "NpsYpmLyrics.dll",
-  "name": "YesPlayMusic 时间轴",
-  "id": "workbuddy.nps.ypmlyrics",
-  "version": "1.2.0",
+  "name": "YesPlayMusic 歌词时间轴",
+  "id": "qwy.nps.ypmlyrics",
+  "version": "1.2.1",
   "author": "QwY"
 }

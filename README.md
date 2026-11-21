@@ -1,4 +1,4 @@
-# NpsYpmLyrics · YesPlayMusic 时间轴
+# NpsYpmLyrics · YesPlayMusic 歌词时间轴
 
 [![release](https://img.shields.io/github/v/release/Qinweiyi/NpsYpmLyrics)](https://github.com/Qinweiyi/NpsYpmLyrics/releases/latest)
 
@@ -72,12 +72,12 @@ CDP 已连接（端口 9333）: ws://127.0.0.1:9333/devtools/page/...
 
 | 值名 | 默认 | 说明 |
 |---|---|---|
-| `Plugin.workbuddy.nps.ypmlyrics.keywords` | `yesplay` | 只接管 SMTC 里 appId 含该关键字的会话；多个用逗号分隔 |
-| `Plugin.workbuddy.nps.ypmlyrics.cdpPort` | `9333,9222` | CDP 端口探测顺序 |
+| `Plugin.qwy.nps.ypmlyrics.keywords` | `yesplay` | 只接管 SMTC 里 appId 含该关键字的会话；多个用逗号分隔 |
+| `Plugin.qwy.nps.ypmlyrics.cdpPort` | `9333,9222` | CDP 端口探测顺序 |
 
 ```powershell
 # 例：换成别的调试端口
-Set-ItemProperty HKCU:\SOFTWARE\NotchPeninsula -Name "Plugin.workbuddy.nps.ypmlyrics.cdpPort" -Value "9333"
+Set-ItemProperty HKCU:\SOFTWARE\NotchPeninsula -Name "Plugin.qwy.nps.ypmlyrics.cdpPort" -Value "9333"
 ```
 
 ## 已知边界

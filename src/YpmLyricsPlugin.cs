@@ -28,7 +28,7 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
 
     public string DisplayName => "YesPlayMusic 歌词时间轴";
 
-    public string Version => "1.2.1";
+    public string Version => "1.3.0";
 
     public string Author => "QwY";
 
@@ -41,6 +41,9 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
         host.RegisterUninstallDirectory(Diag.DataDir);
 
         _hub.Start();
+
+        // 岛内那颗爱心：默认开，`showLikeButton=0` 可关掉
+        if (host.GetSetting("showLikeButton", "1") != "0") host.RegisterWidget(new LikeWidget(_hub));
 
         try
         {

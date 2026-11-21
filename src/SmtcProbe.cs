@@ -19,7 +19,8 @@ internal sealed record PlaybackSnapshot(
     bool IsPlaying,
     DateTime CapturedUtc,
     string? CoverUrl = null,
-    long SongId = 0)
+    long SongId = 0,
+    int Liked = -1)
 {
     public static readonly PlaybackSnapshot None =
         new("", "", "", "", TimeSpan.Zero, TimeSpan.Zero, false, DateTime.MinValue);

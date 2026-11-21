@@ -27,9 +27,24 @@ internal sealed class CdpProbe : IDisposable
 {
     private const int PollIntervalMs = 350;
 
-    /// <summary>一条表达式把「进度 + 元数据」一次性取回来，避免多次往返。</summary>
+    /// <summary>一条表达式把「进度 + 元数据 + 喜欢状态」一次性取回来，避免多次往返。</summary>
     private const string Expression = """
         (() => {
+          // 喜欢状态：播放条那颗爱心里塞了两个 svg（空心 #icon-heart / 实心 #icon-heart-solid），
+          // Vue 用 display 切换，谁可见就是当前状态。读不到就是 -1（未知，比如没登录）。
+          const likeBtn = document.querySelector(
+            '.player button[title="喜欢"], .player button[title="取消喜欢"], .player button[title="Like"], .player button[title="Unlike"]');
+          let lk = -1;
+          if (likeBtn) {
+            const shown = Array.from(likeBtn.querySelectorAll('svg'))
+              .filter(s => getComputedStyle(s).display !== 'none');
+            if (shown.length === 1) {
+              const use = shown[0].querySelector('use');
+              const href = use ? (use.getAttribute('xlink:href') || use.getAttribute('href') || '') : '';
+              lk = href.indexOf('solid') >= 0 ? 1 : 0;
+            }
+          }
+
           const a = document.querySelector('audio');
           if (a) {
             const m = navigator.mediaSession && navigator.mediaSession.metadata;
@@ -42,7 +57,8 @@ internal sealed class CdpProbe : IDisposable
               artist: (m && m.artist) || '',
               album: (m && m.album) || '',
               cover: cover,
-              nid: 0
+              nid: 0,
+              lk: lk
             });
           }
           const root = document.querySelector('#app');
@@ -59,7 +75,8 @@ internal sealed class CdpProbe : IDisposable
               artist: (tr.ar || []).map(x => x.name).join('/'),
               album: (tr.al && tr.al.name) || '',
               cover: (tr.al && tr.al.picUrl) || '',
-              nid: tr.id || 0
+              nid: tr.id || 0,
+              lk: lk
             });
           }
           return '';
@@ -83,6 +100,7 @@ internal sealed class CdpProbe : IDisposable
     private PlaybackSnapshot _snapshot = PlaybackSnapshot.None;
     private string _lastError = "";
     private DateTime _lastDataUtc = DateTime.MinValue;
+    private volatile bool _pollSoon;
 
     /// <param name="ports">
     /// 依次尝试的调试端口。第 9333 是我们推荐给 YesPlayMusic 的独占端口 ——
@@ -121,8 +139,9 @@ internal sealed class CdpProbe : IDisposable
                 Reset();
             }
 
-            try { await Task.Delay(PollIntervalMs, ct); }
+            try { await Task.Delay(_pollSoon ? 120 : PollIntervalMs, ct); }
             catch (OperationCanceledException) { return; }
+            _pollSoon = false;
         }
     }
 
@@ -237,6 +256,7 @@ internal sealed class CdpProbe : IDisposable
         string album = root.TryGetProperty("album", out var al) ? al.GetString() ?? "" : "";
         string cover = root.TryGetProperty("cover", out var co) ? co.GetString() ?? "" : "";
         long nid = root.TryGetProperty("nid", out var ni) && ni.ValueKind == JsonValueKind.Number ? ni.GetInt64() : 0;
+        int liked = root.TryGetProperty("lk", out var lv) && lv.ValueKind == JsonValueKind.Number ? lv.GetInt32() : -1;
 
         if (title.Length == 0 && t <= 0) { Volatile.Write(ref _snapshot, PlaybackSnapshot.None); return; }
 
@@ -250,7 +270,8 @@ internal sealed class CdpProbe : IDisposable
             playing,
             DateTime.UtcNow,
             cover,
-            nid));
+            nid,
+            liked));
         _lastDataUtc = DateTime.UtcNow;
     }
 
@@ -263,26 +284,40 @@ internal sealed class CdpProbe : IDisposable
         int id = Interlocked.Increment(ref _nextId);
         string request = JsonSerializer.Serialize(new { id, method, @params = parameters });
 
-        await ws.SendAsync(Encoding.UTF8.GetBytes(request), WebSocketMessageType.Text, true, ct);
+        // 必须有超时：有别的 DevTools 客户端（比如玩家自己开 F12、或另一个插件抢同一个端口）时，
+        // 我们的请求可能永远收不到回包，没有超时就会把整个轮询循环卡死 —— 表现是进度/爱心状态
+        // 突然不再更新，而且日志里一条错误都没有。
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(2));
+        var token = timeout.Token;
 
-        var buffer = new byte[16 * 1024];
-        using var ms = new MemoryStream();
-
-        while (true)
+        try
         {
-            var segment = new ArraySegment<byte>(buffer);
-            var result = await ws.ReceiveAsync(segment, ct);
-            if (result.MessageType == WebSocketMessageType.Close) { Reset(); return ""; }
+            await ws.SendAsync(Encoding.UTF8.GetBytes(request), WebSocketMessageType.Text, true, token);
 
-            ms.Write(buffer, 0, result.Count);
-            if (!result.EndOfMessage) continue;
+            var buffer = new byte[16 * 1024];
+            using var ms = new MemoryStream();
 
-            string text = Encoding.UTF8.GetString(ms.ToArray());
-            ms.SetLength(0);
+            while (true)
+            {
+                var segment = new ArraySegment<byte>(buffer);
+                var result = await ws.ReceiveAsync(segment, token);
+                if (result.MessageType == WebSocketMessageType.Close) { Reset(); return ""; }
 
-            // 跳过 CDP 事件（没有 id 的推送），只认我们自己这条请求的回包
-            if (!LooksLikeResponse(text, id)) continue;
-            return text;
+                ms.Write(buffer, 0, result.Count);
+                if (!result.EndOfMessage) continue;
+
+                string text = Encoding.UTF8.GetString(ms.ToArray());
+                ms.SetLength(0);
+
+                // 跳过 CDP 事件（没有 id 的推送），只认我们自己这条请求的回包
+                if (!LooksLikeResponse(text, id)) continue;
+                return text;
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("CDP 响应超时（可能有别的 DevTools 客户端占用）");
         }
     }
 
@@ -330,6 +365,23 @@ internal sealed class CdpProbe : IDisposable
     public void Next() => _ = Evaluate(ClickExpr.Replace("{pattern}", NextPattern));
 
     public void Previous() => _ = Evaluate(ClickExpr.Replace("{pattern}", PrevPattern));
+
+    /// <summary>点播放条上的爱心：已喜欢则取消，未喜欢则加入「我喜欢的音乐」。</summary>
+    public void ToggleLike()
+    {
+        _pollSoon = true;   // 让下一次轮询提前，爱心状态尽快刷成新值
+        _ = Evaluate(ToggleLikeExpr);
+    }
+
+    private const string ToggleLikeExpr = """
+        (() => {
+          const btn = document.querySelector(
+            '.player button[title="喜欢"], .player button[title="取消喜欢"], .player button[title="Like"], .player button[title="Unlike"]');
+          if (!btn) return false;
+          btn.click();
+          return true;
+        })()
+        """;
 
     private async Task Evaluate(string expression)
     {

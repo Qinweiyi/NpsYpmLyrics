@@ -68,6 +68,27 @@ CDP 已连接（端口 9333）: ws://127.0.0.1:9333/devtools/page/...
 
 宿主只在**确认接管之后**才读 `Position`，所以第二行是接管的直接证据。
 
+## 岛内爱心：喜欢 / 取消喜欢
+
+媒体行旁边会多一颗 26px 的爱心，点一下等于在 YesPlayMusic 里点那颗爱心（加入 / 移出「我喜欢的音乐」）：
+
+| 样式 | 含义 |
+|---|---|
+| 红色实心 | 已喜欢 |
+| 空心（描边跟随主题文字色，浅色主题下是黑边） | 未喜欢 |
+| 半透明空心 | 读不到状态（多半是没登录网易云） |
+
+状态直接从播放器读取（播放条爱心里那两个 svg：`#icon-heart` / `#icon-heart-solid`，Vue 用 `display` 切换），
+点击也是真的去点播放器那颗按钮，不是插件自己记的一个假状态。所以你在播放器里手动点了，岛上也同步变。
+
+不想要这颗心就把 `showLikeButton` 设为 `0`（见下方设置表）。
+
+> **为什么是「岛内一颗」而不是「宿主媒体条上的一颗」**：宿主 2.2.5 的插件 API 只有
+> `IWidget`（岛内组件）和 `IDetailPage`（展开页）两个 UI 面，内置媒体条不接受插件注入；
+> `IMediaSessionSource` 也只有播放控制（`TogglePlayPause` / `Next` / `Previous` / `OpenApp`），
+> 没有任何「喜欢」相关的成员。宿主如果要让媒体条自己长出一颗红心，需要给接口加
+> `bool? IsLiked` + `ToggleLike()`，插件这边已经准备好了，接口一通就能接。
+
 ## 可调设置
 
 宿主没接插件设置页，参数直接写注册表（`HKCU\SOFTWARE\NotchPeninsula`），改完重启宿主生效：
@@ -76,6 +97,7 @@ CDP 已连接（端口 9333）: ws://127.0.0.1:9333/devtools/page/...
 |---|---|---|
 | `Plugin.qwy.nps.ypmlyrics.keywords` | `yesplay` | 只接管 SMTC 里 appId 含该关键字的会话；多个用逗号分隔 |
 | `Plugin.qwy.nps.ypmlyrics.cdpPort` | `9333,9222` | CDP 端口探测顺序 |
+| `Plugin.qwy.nps.ypmlyrics.showLikeButton` | `1` | 岛内爱心开关，`0` = 不显示 |
 
 ```powershell
 # 例：换成别的调试端口
@@ -103,16 +125,17 @@ Set-ItemProperty HKCU:\SOFTWARE\NotchPeninsula -Name "Plugin.qwy.nps.ypmlyrics.c
 ```cmd
 :: 1. 准备引用（只需一次，详见 ref/README.md）
 copy "%TEMP%\.net\NotchPeninsula.v.2.2.5\*\NotchPeninsula.dll" ref\
+copy "%TEMP%\.net\NotchPeninsula.v.2.2.5\*\SkiaSharp.dll" ref\
 
 :: 2. 编译并部署到宿主 plugins 目录
 build.cmd
 ```
 
-`csproj` 直接引用宿主的 `NotchPeninsula.dll`（`Private=false`），
+`csproj` 直接引用宿主的 `NotchPeninsula.dll` 与 `SkiaSharp.dll`（`Private=false`），
 不复制接口定义 —— 接口类型身份与运行中的宿主一致，加载时才不会被判成 `NotAPlugin`。
 `TargetFramework` 必须与宿主逐字一致（`net10.0-windows10.0.19041.0`）。
 
-仓库里不含这个 dll（属于宿主的二进制），`ref/` 只有一份取用说明；缺文件时编译会直接给出提示。
+仓库里不含这两个 dll（属于宿主的二进制），`ref/` 只有一份取用说明；缺文件时编译会直接给出提示。
 
 ## 排障
 

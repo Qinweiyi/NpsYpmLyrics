@@ -17,6 +17,7 @@ internal sealed class PlaybackHub : IDisposable
     private string _songKey = "";
     private bool _lastPlaying;
     private bool _lastHasSession;
+    private int _lastLiked = int.MinValue;
     private int _hostReads;
 
     /// <summary>换歌 / 播放状态 / 有无会话变化时触发，作为 <see cref="IMediaSessionSource.Changed"/> 的来源。</summary>
@@ -77,6 +78,15 @@ internal sealed class PlaybackHub : IDisposable
     /// <summary>给宿主读的总时长；未知时 <see cref="TimeSpan.Zero"/>（宿主据此决定要不要接管）。</summary>
     public TimeSpan CurrentDuration => Snapshot.Duration;
 
+    /// <summary>1 = 已喜欢，0 = 未喜欢，-1 = 读不到（没登录 / 播放条不在）。</summary>
+    public int Liked => Snapshot.Liked;
+
+    /// <summary>把当前歌曲加入或移出「我喜欢的音乐」。只有 CDP 能点，SMTC 没有这个能力。</summary>
+    public void ToggleLike()
+    {
+        if (_cdp.Connected) _cdp.ToggleLike();
+    }
+
     // ---- 后台：只做状态广播 ----
 
     private void Tick()
@@ -94,6 +104,14 @@ internal sealed class PlaybackHub : IDisposable
 
         _lastPlaying = playing;
         _lastHasSession = hasSession;
+
+        // 喜欢状态变了记一笔：爱心颜色切换没有别的痕迹，排障时全靠这行
+        int liked = snap.Liked;
+        if (liked != _lastLiked)
+        {
+            _lastLiked = liked;
+            Diag.Log($"喜欢状态 → {(liked == 1 ? "已喜欢" : liked == 0 ? "未喜欢" : "未知")}（{snap.Title}）");
+        }
 
         if (stateChanged) RaiseStateChanged();
     }

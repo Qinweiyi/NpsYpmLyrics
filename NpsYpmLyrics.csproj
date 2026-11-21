@@ -26,10 +26,6 @@
       <HintPath>ref\NotchPeninsula.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="SkiaSharp">
-      <HintPath>ref\SkiaSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
   </ItemGroup>
 
   <!-- 缺宿主程序集时给一句人话，而不是让编译器报一串「找不到 INotchPlugin」 -->

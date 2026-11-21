@@ -101,17 +101,16 @@ Set-ItemProperty HKCU:\SOFTWARE\NotchPeninsula -Name "Plugin.workbuddy.nps.ypmly
 ```cmd
 :: 1. 准备引用（只需一次，详见 ref/README.md）
 copy "%TEMP%\.net\NotchPeninsula.v.2.2.5\*\NotchPeninsula.dll" ref\
-copy "%TEMP%\.net\NotchPeninsula.v.2.2.5\*\SkiaSharp.dll" ref\
 
 :: 2. 编译并部署到宿主 plugins 目录
 build.cmd
 ```
 
-`csproj` 直接引用宿主的 `NotchPeninsula.dll` / `SkiaSharp.dll`（`Private=false`），
+`csproj` 直接引用宿主的 `NotchPeninsula.dll`（`Private=false`），
 不复制接口定义 —— 接口类型身份与运行中的宿主一致，加载时才不会被判成 `NotAPlugin`。
 `TargetFramework` 必须与宿主逐字一致（`net10.0-windows10.0.19041.0`）。
 
-仓库里不含这两个 dll（属于宿主的二进制），`ref/` 只有一份取用说明；缺文件时编译会直接给出提示。
+仓库里不含这个 dll（属于宿主的二进制），`ref/` 只有一份取用说明；缺文件时编译会直接给出提示。
 
 ## 排障
 

@@ -10,17 +10,13 @@ namespace NpsYpmLyrics;
 /// <para>
 /// 它<b>不是</b>一个独立媒体面板，而是一路「外部媒体源」：把 YesPlayMusic 的真实播放位置与时长
 /// 交给宿主，岛上的媒体条、进度、歌词全部由宿主内置的媒体控制渲染（和 mediacdp 插件的定位一致）。
+/// 插件不注册任何岛内组件。
 /// </para>
 ///
 /// <para>
 /// 宿主原有链路是 SMTC → 媒体面板，但 YesPlayMusic 的 Electron 外壳只注册了歌名歌手、
 /// 从不上报时间轴（<c>pos/end</c> 恒为 0）。宿主看到 <c>smtcDuration == 0</c> 时会来找本插件接管，
 /// 于是同一个媒体面板就拿到了正确进度。
-/// </para>
-///
-/// <para>
-/// 默认不注册任何岛内组件。想要岛内单独显示一行歌词的老玩法，把
-/// <c>Plugin.workbuddy.nps.ypmlyrics.showWidget</c> 设成 <c>1</c>。
 /// </para>
 /// </summary>
 public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDisposable
@@ -32,7 +28,7 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
 
     public string DisplayName => "YesPlayMusic 时间轴";
 
-    public string Version => "1.1.0";
+    public string Version => "1.2.0";
 
     public string Author => "QwY";
 
@@ -40,12 +36,7 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
     {
         _keywords = ParseKeywords(host.GetSetting("keywords", "yesplay"));
 
-        bool showWidget = host.GetSetting("showWidget", "0") == "1";
-
-        // 只有需要岛内那一行时才去拉歌词；纯时间轴模式下不发任何歌词请求
-        _hub = new PlaybackHub(host, lyricsEnabled: showWidget);
-
-        if (showWidget) host.RegisterWidget(new LyricWidget(_hub));
+        _hub = new PlaybackHub(host, ToArray(_keywords), ParsePorts(host.GetSetting("cdpPort", "9333,9222")));
 
         host.RegisterUninstallDirectory(Diag.DataDir);
 
@@ -60,9 +51,7 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
                 {
                     Source = "YesPlayMusic 时间轴",
                     Title = "时间轴已接管",
-                    Body = showWidget
-                        ? "岛内会多一行歌词；媒体条进度也来自插件。"
-                        : "媒体面板里的进度和歌词现在跟着 YesPlayMusic 走了。",
+                    Body = "媒体面板里的进度和歌词现在跟着 YesPlayMusic 走了。",
                     Duration = TimeSpan.FromSeconds(8),
                 });
             }
@@ -71,6 +60,13 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
         {
             Diag.Log("首次提示失败: " + ex.Message);
         }
+    }
+
+    private static string[] ToArray(IReadOnlyList<string> list)
+    {
+        var arr = new string[list.Count];
+        for (int i = 0; i < list.Count; i++) arr[i] = list[i];
+        return arr;
     }
 
     private static IReadOnlyList<string> ParseKeywords(string raw)
@@ -82,6 +78,16 @@ public sealed class YpmLyricsPlugin : INotchPlugin, IMediaSessionSource, IDispos
             if (k.Length > 0 && !list.Contains(k, StringComparer.OrdinalIgnoreCase)) list.Add(k);
         }
         return list;
+    }
+
+    private static int[] ParsePorts(string raw)
+    {
+        var ports = new List<int>();
+        foreach (string part in (raw ?? "").Split(new[] { ',', '，', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (int.TryParse(part, out int p) && p > 0 && p < 65536 && !ports.Contains(p)) ports.Add(p);
+        }
+        return ports.Count > 0 ? ports.ToArray() : new[] { 9333, 9222 };
     }
 
     // ---- IMediaSessionSource：宿主在 Initialize 之后自动登记这路源 ----

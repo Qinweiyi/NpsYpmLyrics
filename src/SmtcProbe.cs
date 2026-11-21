@@ -70,9 +70,6 @@ internal sealed class SmtcProbe : IDisposable
     private GlobalSystemMediaTransportControlsSession? _session;
     private PlaybackSnapshot _snapshot = PlaybackSnapshot.None;
 
-    /// <summary>快照变化（换歌 / 播放状态变化 / 会话消失）。任意线程触发。</summary>
-    public event Action<PlaybackSnapshot>? Changed;
-
     public SmtcProbe(string[] keywords) => _keywords = keywords;
 
     public PlaybackSnapshot Snapshot => Volatile.Read(ref _snapshot);
@@ -196,34 +193,13 @@ internal sealed class SmtcProbe : IDisposable
             pos < TimeSpan.Zero ? TimeSpan.Zero : pos, dur, playing, DateTime.UtcNow);
     }
 
-    private void Publish(PlaybackSnapshot snap)
-    {
-        PlaybackSnapshot prev = Volatile.Read(ref _snapshot);
-        Volatile.Write(ref _snapshot, snap);
+    private void Publish(PlaybackSnapshot snap) => Volatile.Write(ref _snapshot, snap);
 
-        // 只有「换歌 / 播放状态 / 会话有无」才通知，进度推进不通知（调用方自己外推）
-        bool changed =
-            prev.HasSession != snap.HasSession ||
-            prev.IsPlaying != snap.IsPlaying ||
-            !string.Equals(prev.Title, snap.Title, StringComparison.Ordinal) ||
-            !string.Equals(prev.Artist, snap.Artist, StringComparison.Ordinal) ||
-            !string.Equals(prev.AppId, snap.AppId, StringComparison.Ordinal);
-
-        if (changed) Changed?.Invoke(snap);
-    }
-
-    // ---- 传输控制（详情页按钮用）----
+    // ---- 传输控制 ----
 
     public void TogglePlayPause() => Fire(s => s.TryTogglePlayPauseAsync());
     public void Next() => Fire(s => s.TrySkipNextAsync());
     public void Previous() => Fire(s => s.TrySkipPreviousAsync());
-
-    public void Seek(TimeSpan position)
-    {
-        long ticks = position.Ticks;
-        if (ticks < 0) ticks = 0;
-        Fire(s => s.TryChangePlaybackPositionAsync(ticks));
-    }
 
     public void OpenApp()
     {
@@ -273,7 +249,6 @@ internal sealed class SmtcProbe : IDisposable
     {
         try { _cts.Cancel(); } catch { }
         _cts.Dispose();
-        Changed = null;
         lock (_gate) _session = null;
         _manager = null;
     }

@@ -13,7 +13,7 @@ internal static class Diag
 
     public static string DataDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "NotchPeninsula", "lyrics", "ypm");
+        "NotchPeninsula", "ypm-timeline");
 
     public static void Log(string message)
     {

@@ -94,6 +94,8 @@ internal sealed class CdpProbe : IDisposable
         _ports = ports is { Length: > 0 } ? ports : new[] { 9333, 9222 };
     }
 
+    public int[] Ports => _ports;
+
     public PlaybackSnapshot Snapshot => Volatile.Read(ref _snapshot);
 
     public bool Connected

@@ -1,0 +1,8 @@
+# 批处理脚本必须是 CRLF，否则 cmd.exe 解析会出问题
+*.cmd text eol=crlf
+
+# 其余文本统一 LF
+*.cs      text eol=lf
+*.csproj  text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf

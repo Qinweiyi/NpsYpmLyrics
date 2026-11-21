@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 必须与宿主主程序逐字一致，否则加载不了（PluginFailureKind.HostMismatch） -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>NpsYpmLyrics</AssemblyName>
+    <RootNamespace>NpsYpmLyrics</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <Version>1.1.0</Version>
+    <Company>QwY</Company>
+    <Product>YesPlayMusic 时间轴</Product>
+
+    <!-- 插件是类库，不要生成 exe；也不要把宿主依赖拷进产物 -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 直接引用本机已安装的宿主程序集（2.2.5 解包目录复制而来）：
+         接口类型身份与运行中的宿主完全一致，杜绝「自带接口副本 → NotAPlugin」 -->
+    <Reference Include="NotchPeninsula">
+      <HintPath>ref\NotchPeninsula.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SkiaSharp">
+      <HintPath>ref\SkiaSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- 缺宿主程序集时给一句人话，而不是让编译器报一串「找不到 INotchPlugin」 -->
+  <Target Name="CheckHostReferences" BeforeTargets="ResolveAssemblyReferences"
+          Condition="!Exists('$(MSBuildProjectDirectory)\ref\NotchPeninsula.dll')">
+    <Error Text="缺少 ref\NotchPeninsula.dll。请按 ref/README.md 的说明，从已安装的 NotchPeninsula 解包目录里把 NotchPeninsula.dll 与 SkiaSharp.dll 复制到 ref\ 后再编译。" />
+  </Target>
+
+</Project>

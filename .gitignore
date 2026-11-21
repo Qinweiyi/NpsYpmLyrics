@@ -1,0 +1,13 @@
+# 构建产物
+bin/
+obj/
+
+# 宿主程序集（不入库：属于 NotchPeninsula 的二进制，见 ref/README.md 自行复制）
+ref/*.dll
+
+# 编辑器 / 系统
+.vs/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
